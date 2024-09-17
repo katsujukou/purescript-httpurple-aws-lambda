@@ -1,0 +1,8 @@
+package:
+  name: example
+  dependencies:
+    - codec
+    - codec-argonaut
+    - httpurple
+    - httpurple-aws-lambda
+    - routing-duplex

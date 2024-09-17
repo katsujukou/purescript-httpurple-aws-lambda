@@ -1,0 +1,38 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: SAM Template for Kotolab HP server app
+
+Resources:
+  MyApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: Dev
+      CorsConfiguration:
+        AllowOrigins:
+          - "*"
+        AllowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+        AllowHeaders:
+          - Content-Type
+          - Authorization
+        MaxAge: 600
+        AllowCredentials: false
+
+  MyFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: app.handler
+      Runtime: nodejs20.x
+      CodeUri: ./dist
+      MemorySize: 128
+      Timeout: 100
+      Events:
+        CatchAllRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref MyApi
+            Path: /{proxy+}
+            Method: ANY
