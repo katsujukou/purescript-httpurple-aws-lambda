@@ -1,0 +1,17 @@
+package:
+  name: httpurple-aws-lambda
+  dependencies:
+    - aff-promise
+    - codec
+    - console
+    - effect
+    - httpurple
+    - prelude
+    - routing-duplex
+  test:
+    main: Test.Main
+    dependencies: []
+workspace:
+  packageSet:
+    registry: 60.0.0
+  extraPackages: {}
