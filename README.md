@@ -3,6 +3,7 @@
 An adapter functionality for running HTTPurple apps on AWS Lambda
 
 [![purs - v0.15.15](https://img.shields.io/badge/purs-v0.15.15-blue?logo=purescript)](https://github.com/purescript/purescript/releases/tag/v0.15.15)
+[![CI](https://github.com/katsujukou/purescript-httpurple-aws-lambda/actions/workflows/ci.yml/badge.svg)](https://github.com/katsujukou/purescript-httpurple-aws-lambda/actions/workflows/ci.yml)
 
 ## How to use this
 
