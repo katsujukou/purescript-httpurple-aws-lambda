@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Nix
+        uses: cachix/install-nix-action@v23
+        with:
+          nix_path: nixpkgs=channel:nixos-24.05
+
+      - name: Enable nix devshell
+        uses: nicknovitski/nix-develop@v1
+
+      - name: Build environment with Nix flake
+        run: nix develop --extra-experimental-features "nix-command flakes"
+
+      - name: Build source
+        run: spago build
+
+      # - name: Build examples
+      #   run: spago build -p example && cd example && npx vite -c ../.github/workflows/vite.config.js build
+
+      - name: Run tests
+        run: npm ci && spago test -m Test.Main
+
+      - name: Verify formatting
+        run: purs-tidy check src test example/src
