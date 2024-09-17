@@ -2,12 +2,11 @@ module HTTPurple.AWS.Lambda.Trigger.APIGatewayV2
   ( APIGatewayEventRequestContextV2
   , APIGatewayProxyEventV2
   , APIGatewayProxyResultV2
-  )
-  where
+  ) where
 
 import Data.Nullable (Nullable)
 import Foreign.Object (Object)
-  
+
 type APIGatewayProxyEventV2 =
   { version :: String
   , routeKey :: String
@@ -18,20 +17,20 @@ type APIGatewayProxyEventV2 =
   , queryStringParameters :: Object String
   , body :: String
   , requestContext :: APIGatewayEventRequestContextV2
-  , isBase64Encoded :: Boolean 
+  , isBase64Encoded :: Boolean
   }
 
 type APIGatewayEventRequestContextV2 =
-  { accountId :: String 
+  { accountId :: String
   , apiId :: String
   , domainName :: String
   , domainPrefix :: String
-  , http :: 
-      { method :: String 
+  , http ::
+      { method :: String
       , path :: String
       , protocol :: String
-      , sourceIp :: String 
-      , userAgent :: String 
+      , sourceIp :: String
+      , userAgent :: String
       }
   , requestId :: String
   , routeKey :: String
@@ -41,7 +40,7 @@ type APIGatewayEventRequestContextV2 =
   }
 
 type APIGatewayProxyResultV2 =
-  { statusCode :: Int 
+  { statusCode :: Int
   , body :: Nullable String
   , headers :: Nullable (Object String)
   , isBase64Encoded :: Nullable Boolean

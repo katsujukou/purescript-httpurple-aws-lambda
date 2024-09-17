@@ -31,18 +31,18 @@ extractBody { writeBody } = makeAff \done -> do
   -- Consuming body written to stream
   chunks <- liftEffect $ Ref.new []
   stream # EE.on_ dataH \chunk -> do
-      Ref.modify_ (\buf -> Array.snoc buf chunk) chunks
+    Ref.modify_ (\buf -> Array.snoc buf chunk) chunks
   stream # EE.on_ endH do
     body <- Buffer.toString UTF8 =<< Buffer.concat =<< Ref.read chunks
     done $ Right (if body == "" then Nothing else Just body)
 
-  launchAff_ $ writeBody (unsafeCoerce stream) 
+  launchAff_ $ writeBody (unsafeCoerce stream)
   pure nonCanceler
 
 foldHeaders :: Headers.ResponseHeaders -> Maybe (Object String)
 foldHeaders (Headers.ResponseHeaders headers)
   | Map.isEmpty headers = Nothing
-  | otherwise = headers 
-                  # Map.toUnfoldable
-                  # foldl (\prev (Tuple k v) -> Object.insert (unwrap k) (Str.joinWith ";" v) prev) Object.empty
-                  # Just
+  | otherwise = headers
+      # Map.toUnfoldable
+      # foldl (\prev (Tuple k v) -> Object.insert (unwrap k) (Str.joinWith ";" v) prev) Object.empty
+      # Just

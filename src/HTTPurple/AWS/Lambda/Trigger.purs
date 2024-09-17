@@ -1,13 +1,12 @@
-module HTTPurple.AWS.Lambda.Trigger 
+module HTTPurple.AWS.Lambda.Trigger
   ( TriggerType
   , APIGateway
   , APIGatewayV2
-  , ALB 
+  , ALB
   , class LambdaTrigger
   , toRequest
   , toResponse
   ) where
-
 
 import Prelude
 
@@ -44,60 +43,60 @@ foreign import data APIGatewayV2 :: TriggerType
 foreign import data ALB :: TriggerType
 
 class LambdaTrigger :: forall k. k -> Type -> Type -> Constraint
-class LambdaTrigger trigger event result | trigger -> event result where 
-  toRequest :: forall route. 
-    RouteDuplex' route -> 
-    event -> 
-    Effect (Either (Request Unit) (Request route))
+class LambdaTrigger trigger event result | trigger -> event result where
+  toRequest
+    :: forall route
+     . RouteDuplex' route
+    -> event
+    -> Effect (Either (Request Unit) (Request route))
   toResponse :: Response -> Aff result
 
-instance apiGatewayV2LambdaTrigger :: 
-  LambdaTrigger 
-    APIGatewayV2 
-    APIGatewayProxyEventV2 
-    APIGatewayProxyResultV2 
-  where 
+instance apiGatewayV2LambdaTrigger ::
+  LambdaTrigger
+    APIGatewayV2
+    APIGatewayProxyEventV2
+    APIGatewayProxyResultV2
+  where
   toRequest routes evt = do
-    let         
-      url = evt.rawPath <> "?" <> evt.rawQueryString 
-              
-      request = unsafeCoerce 
+    let
+      url = evt.rawPath <> "?" <> evt.rawQueryString
+
+      request = unsafeCoerce
         { url
         , headers: evt.headers
-        , method: evt.requestContext.http.method 
-        , httpVersion: Str.replace (Pattern "HTTP/") (Replacement "")  evt.requestContext.http.protocol
+        , method: evt.requestContext.http.method
+        , httpVersion: Str.replace (Pattern "HTTP/") (Replacement "") evt.requestContext.http.protocol
         }
 
-    RD.parse routes url # 
+    RD.parse routes url #
       bitraverse (const $ mkRequest request unit) (mkRequest request)
     where
-      mkRequest :: forall route. IncomingMessage IMServer -> route -> Effect (Request route)
-      mkRequest req route = do
-        body <- liftEffect do 
-          buffer <- Ref.new Nothing
-          string <- Ref.new Nothing
-          bodyBuf <- Buffer.fromString evt.body $ if evt.isBase64Encoded then Base64 else UTF8
-          stream <- readableFromBuffer bodyBuf              
-          pure { buffer, stream, string }
+    mkRequest :: forall route. IncomingMessage IMServer -> route -> Effect (Request route)
+    mkRequest req route = do
+      body <- liftEffect do
+        buffer <- Ref.new Nothing
+        string <- Ref.new Nothing
+        bodyBuf <- Buffer.fromString evt.body $ if evt.isBase64Encoded then Base64 else UTF8
+        stream <- readableFromBuffer bodyBuf
+        pure { buffer, stream, string }
 
-        pure 
-          { method: Method.read req
-          , path: Path.read req
-          , query: Query.read req
-          , route: route
-          , headers: Headers.read req
-          , body
-          , httpVersion: Version.read req
-          , url: IM.url req
-          } 
+      pure
+        { method: Method.read req
+        , path: Path.read req
+        , query: Query.read req
+        , route: route
+        , headers: Headers.read req
+        , body
+        , httpVersion: Version.read req
+        , url: IM.url req
+        }
 
   toResponse httpurpleResp = do
-    mbBody <- extractBody httpurpleResp 
-    pure 
-      { statusCode: httpurpleResp.status 
-      , body: toNullable mbBody 
+    mbBody <- extractBody httpurpleResp
+    pure
+      { statusCode: httpurpleResp.status
+      , body: toNullable mbBody
       , cookies: toNullable Nothing
-      , headers:  httpurpleResp.headers # foldHeaders # toNullable
+      , headers: httpurpleResp.headers # foldHeaders # toNullable
       , isBase64Encoded: Nothing # toNullable
       }
-  

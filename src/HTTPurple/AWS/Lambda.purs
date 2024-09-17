@@ -1,8 +1,7 @@
 module HTTPurple.AWS.Lambda
   ( Handler
   , mkHandler
-  )
-  where
+  ) where
 
 import Prelude
 
@@ -20,26 +19,27 @@ import HTTPurple.AWS.Lambda.Context (LambdaContext)
 -- | The type of Lambda handler function.
 type Handler event result = EffectFn2 event LambdaContext (Promise result)
 
-mkHandler :: forall @trigger event result route. 
-  LambdaTrigger trigger event result => 
-  HTTPurple.BasicRoutingSettings route ->
-  Handler event result
-mkHandler { route, router } = mkEffectFn2 \evt _ -> do 
+mkHandler
+  :: forall @trigger event result route
+   . LambdaTrigger trigger event result
+  => HTTPurple.BasicRoutingSettings route
+  -> Handler event result
+mkHandler { route, router } = mkEffectFn2 \evt _ -> do
   fib <- launchAff $ handleRequest evt
   fromAff $ joinFiber fib
   where
-    handleRequest :: event -> Aff _
-    handleRequest evt = do
-      httpurpleReq <- liftEffect $ toRequest @trigger route evt
-      httpurpleResp <- (onNotFound ||| handleInternelError router) httpurpleReq
-      resp <- toResponse @trigger httpurpleResp
-      pure resp
+  handleRequest :: event -> Aff _
+  handleRequest evt = do
+    httpurpleReq <- liftEffect $ toRequest @trigger route evt
+    httpurpleResp <- (onNotFound ||| handleInternelError router) httpurpleReq
+    resp <- toResponse @trigger httpurpleResp
+    pure resp
 
-    onNotFound = const HTTPurple.notFound
+  onNotFound = const HTTPurple.notFound
 
-    handleInternelError router' req = do
-      catchError (router' req) \err -> do
-        liftEffect $ do 
-          Console.error $ Exn.message err 
-          Console.logShow $ Exn.stack err
-        HTTPurple.internalServerError "Internal server error"
+  handleInternelError router' req = do
+    catchError (router' req) \err -> do
+      liftEffect $ do
+        Console.error $ Exn.message err
+        Console.logShow $ Exn.stack err
+      HTTPurple.internalServerError "Internal server error"
