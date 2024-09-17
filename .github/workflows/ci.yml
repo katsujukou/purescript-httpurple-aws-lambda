@@ -31,7 +31,7 @@ jobs:
       #   run: spago build -p example && cd example && npx vite -c ../.github/workflows/vite.config.js build
 
       - name: Run tests
-        run: npm ci && spago test -m Test.Main
+        run: spago test -m Test.Main
 
       - name: Verify formatting
         run: purs-tidy check src test example/src
