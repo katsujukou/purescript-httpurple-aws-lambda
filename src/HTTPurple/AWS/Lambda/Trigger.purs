@@ -10,18 +10,25 @@ module HTTPurple.AWS.Lambda.Trigger
 
 import Prelude
 
+import Data.Array as Array
 import Data.Bitraversable (bitraverse)
-import Data.Either (Either)
+import Data.Either (Either(..))
+import Data.Map as Map
 import Data.Maybe (Maybe(..))
+import Data.Newtype (unwrap)
 import Data.Nullable (toNullable)
 import Data.String (Pattern(..), Replacement(..))
 import Data.String as Str
+import Data.Tuple (Tuple(..))
 import Effect (Effect)
-import Effect.Aff (Aff)
+import Effect.Aff (Aff, launchAff_, makeAff, nonCanceler)
 import Effect.Class (liftEffect)
 import Effect.Ref as Ref
+import Foreign.Object (Object)
+import Foreign.Object as Object
 import HTTPurple (Request, RouteDuplex', Response)
-import HTTPurple.AWS.Lambda.Response (extractBody, foldHeaders)
+import HTTPurple.AWS.Lambda.Trigger.ALB (ALBEvent, ALBResult)
+import HTTPurple.AWS.Lambda.Trigger.APIGateway (APIGatewayProxyEvent, APIGatewayProxyResult)
 import HTTPurple.AWS.Lambda.Trigger.APIGatewayV2 (APIGatewayProxyEventV2, APIGatewayProxyResultV2)
 import HTTPurple.Headers as Headers
 import HTTPurple.Method as Method
@@ -30,9 +37,11 @@ import HTTPurple.Query as Query
 import HTTPurple.Version as Version
 import Node.Buffer.Class as Buffer
 import Node.Encoding (Encoding(..))
+import Node.EventEmitter as EE
 import Node.HTTP.IncomingMessage as IM
 import Node.HTTP.Types (IMServer, IncomingMessage)
-import Node.Stream (readableFromBuffer)
+import Node.Stream (dataH, endH, readableFromBuffer)
+import Node.Stream as Stream
 import Routing.Duplex as RD
 import Unsafe.Coerce (unsafeCoerce)
 
@@ -80,7 +89,7 @@ instance apiGatewayV2LambdaTrigger ::
         stream <- readableFromBuffer bodyBuf
         pure { buffer, stream, string }
 
-      pure
+      pure $
         { method: Method.read req
         , path: Path.read req
         , query: Query.read req
@@ -93,10 +102,45 @@ instance apiGatewayV2LambdaTrigger ::
 
   toResponse httpurpleResp = do
     mbBody <- extractBody httpurpleResp
-    pure
+    pure $
       { statusCode: httpurpleResp.status
       , body: toNullable mbBody
       , cookies: toNullable Nothing
       , headers: httpurpleResp.headers # foldHeaders # toNullable
       , isBase64Encoded: Nothing # toNullable
       }
+
+else instance albLambdaTrigger ::
+  LambdaTrigger ALB ALBEvent ALBResult
+  where
+  toRequest _ _ = unsafeCoerce {}
+  toResponse = unsafeCoerce {}
+
+else instance apiGatewayLambdaTrigger ::
+  LambdaTrigger APIGateway APIGatewayProxyEvent APIGatewayProxyResult
+  where
+  toRequest _ _ = unsafeCoerce {}
+  toResponse = unsafeCoerce {}
+
+extractBody :: Response -> Aff (Maybe String)
+extractBody { writeBody } = makeAff \done -> do
+  stream <- liftEffect Stream.newPassThrough
+
+  -- Consuming body written to stream
+  chunks <- liftEffect $ Ref.new []
+  stream # EE.on_ dataH \chunk -> do
+    Ref.modify_ (\buf -> Array.snoc buf chunk) chunks
+  stream # EE.on_ endH do
+    body <- Buffer.toString UTF8 =<< Buffer.concat =<< Ref.read chunks
+    done $ Right (if body == "" then Nothing else Just body)
+
+  launchAff_ $ writeBody (unsafeCoerce stream)
+  pure nonCanceler
+
+foldHeaders :: Headers.ResponseHeaders -> Maybe (Object String)
+foldHeaders (Headers.ResponseHeaders headers)
+  | Map.isEmpty headers = Nothing
+  | otherwise = headers
+      # Map.toUnfoldable
+      # Array.foldl (\prev (Tuple k v) -> Object.insert (unwrap k) (Str.joinWith ";" v) prev) Object.empty
+      # Just
