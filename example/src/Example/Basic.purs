@@ -11,7 +11,7 @@ import Data.Maybe (Maybe, fromMaybe)
 import Data.Show.Generic (genericShow)
 import HTTPurple (Method(..), notFound, ok)
 import HTTPurple as HTTPurple
-import HTTPurple.AWS.Lambda (APIGateway, LambdaHandler, lambdaRouter, mkHandler)
+import HTTPurple.AWS.Lambda (APIGatewayV2, LambdaHandler, lambdaRouter, mkHandler)
 import Routing.Duplex (optional, string)
 import Routing.Duplex as RD
 import Routing.Duplex.Generic as RDG
@@ -36,7 +36,7 @@ codec = CA.object "RequestBody" $
     { ultimate_answer: CA.int
     }
 
-handler :: LambdaHandler APIGateway
+handler :: LambdaHandler APIGatewayV2
 handler = mkHandler { route: endpoints, router }
   where
   router = lambdaRouter \req@{ method, route } -> HTTPurple.usingCont $

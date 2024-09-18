@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: SAM Template for Kotolab HP server app
 
@@ -21,12 +21,12 @@ Resources:
         MaxAge: 600
         AllowCredentials: false
 
-  MyFunction:
+  ExampleBasicFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: app.handler
+      Handler: app.basic
       Runtime: nodejs20.x
-      CodeUri: ./dist
+      CodeUri: ./.dist
       MemorySize: 128
       Timeout: 100
       Events:
