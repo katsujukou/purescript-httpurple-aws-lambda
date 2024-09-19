@@ -35,9 +35,9 @@ unLambdaExtRequest
 unLambdaExtRequest = unsafeCoerce
 
 lambdaRouter
-  :: forall @trigger event result route output
+  :: forall @trigger m event result route output
    . LambdaTrigger trigger event result
-  => (LambdaExtRequestE trigger event route output -> HTTPurple.ResponseM)
+  => (LambdaExtRequestE trigger event route output -> m HTTPurple.Response)
   -> LambdaExtRequest trigger route output
-  -> HTTPurple.ResponseM
+  -> m HTTPurple.Response
 lambdaRouter router req = router (unLambdaExtRequest req)

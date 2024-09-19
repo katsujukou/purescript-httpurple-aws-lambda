@@ -1,11 +1,13 @@
 module HTTPurple.AWS.Lambda.Trigger.APIGatewayV2
-  ( APIGatewayEventRequestContextV2
+  ( APIGatewayEventClientCertificate
+  , APIGatewayEventRequestContextV2
   , APIGatewayProxyEventV2
   , APIGatewayProxyResultV2
   ) where
 
 import Data.Nullable (Nullable)
 import Foreign.Object (Object)
+import HTTPurple.AWS.Lambda.Trigger.Types (SomeAuthorizer)
 
 type APIGatewayProxyEventV2 =
   { version :: String
@@ -23,6 +25,8 @@ type APIGatewayProxyEventV2 =
 type APIGatewayEventRequestContextV2 =
   { accountId :: String
   , apiId :: String
+  , authentication :: Nullable APIGatewayEventClientCertificate
+  , authorizer :: Nullable SomeAuthorizer
   , domainName :: String
   , domainPrefix :: String
   , http ::
@@ -37,6 +41,17 @@ type APIGatewayEventRequestContextV2 =
   , stage :: String
   , time :: String
   , timeEpoch :: Number
+  }
+
+type APIGatewayEventClientCertificate =
+  { clientCertPem :: String
+  , serialNumber :: String
+  , subjectDN :: String
+  , issuerDN :: String
+  , validity ::
+      { notAfter :: String
+      , notBefore :: String
+      }
   }
 
 type APIGatewayProxyResultV2 =
