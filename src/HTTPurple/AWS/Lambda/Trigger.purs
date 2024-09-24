@@ -14,9 +14,9 @@ import Data.Array as Array
 import Data.Bitraversable (bitraverse)
 import Data.Either (Either(..))
 import Data.Map as Map
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (unwrap)
-import Data.Nullable (toNullable)
+import Data.Nullable (toMaybe, toNullable)
 import Data.String (Pattern(..), Replacement(..))
 import Data.String as Str
 import Data.Tuple (Tuple(..))
@@ -85,7 +85,9 @@ instance apiGatewayV2LambdaTrigger ::
       body <- liftEffect do
         buffer <- Ref.new Nothing
         string <- Ref.new Nothing
-        bodyBuf <- Buffer.fromString evt.body $ if evt.isBase64Encoded then Base64 else UTF8
+        let
+          body' = toMaybe evt.body # fromMaybe ""
+        bodyBuf <- Buffer.fromString body' $ if evt.isBase64Encoded then Base64 else UTF8
         stream <- readableFromBuffer bodyBuf
         pure { buffer, stream, string }
 

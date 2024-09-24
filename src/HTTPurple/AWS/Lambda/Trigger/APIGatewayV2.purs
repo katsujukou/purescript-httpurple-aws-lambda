@@ -16,9 +16,11 @@ type APIGatewayProxyEventV2 =
   , rawQueryString :: String
   , cookies :: Nullable (Array String)
   , headers :: Object String
-  , queryStringParameters :: Object String
-  , body :: String
+  , queryStringParameters :: Nullable (Object (Nullable String))
+  , body :: Nullable String
   , requestContext :: APIGatewayEventRequestContextV2
+  , pathParameters :: Nullable (Object (Nullable String))
+  , stageVariables :: Nullable (Object (Nullable String))
   , isBase64Encoded :: Boolean
   }
 
