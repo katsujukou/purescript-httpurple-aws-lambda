@@ -126,17 +126,7 @@ else instance apiGatewayLambdaTrigger ::
 
 extractBody :: Response -> Aff (Maybe String)
 extractBody { writeBody } = makeAff \done -> do
-  stream <- liftEffect Stream.newPassThrough
-
-  -- Consuming body written to stream
-  chunks <- liftEffect $ Ref.new []
-  stream # EE.on_ dataH \chunk -> do
-    Ref.modify_ (\buf -> Array.snoc buf chunk) chunks
-  stream # EE.on_ endH do
-    body <- Buffer.toString UTF8 =<< Buffer.concat =<< Ref.read chunks
-    done $ Right (if body == "" then Nothing else Just body)
-
-  launchAff_ $ writeBody (unsafeCoerce stream)
+  launchAff_ $ writeBody (unsafeCoerce done)
   pure nonCanceler
 
 foldHeaders :: Headers.ResponseHeaders -> Maybe (Object String)
