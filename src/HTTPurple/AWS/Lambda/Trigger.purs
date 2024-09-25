@@ -12,7 +12,7 @@ import Prelude
 
 import Data.Array as Array
 import Data.Bitraversable (bitraverse)
-import Data.Either (Either)
+import Data.Either (Either(..))
 import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (unwrap)
@@ -37,9 +37,11 @@ import HTTPurple.Query as Query
 import HTTPurple.Version as Version
 import Node.Buffer.Class as Buffer
 import Node.Encoding (Encoding(..))
+import Node.EventEmitter as EE
 import Node.HTTP.IncomingMessage as IM
 import Node.HTTP.Types (IMServer, IncomingMessage)
-import Node.Stream (readableFromBuffer)
+import Node.Stream (dataH, endH, readableFromBuffer)
+import Node.Stream as Stream
 import Routing.Duplex as RD
 import Unsafe.Coerce (unsafeCoerce)
 
@@ -124,7 +126,17 @@ else instance apiGatewayLambdaTrigger ::
 
 extractBody :: Response -> Aff (Maybe String)
 extractBody { writeBody } = makeAff \done -> do
-  launchAff_ $ writeBody (unsafeCoerce done)
+  stream <- liftEffect Stream.newPassThrough
+
+  -- Consuming body written to stream
+  chunks <- liftEffect $ Ref.new []
+  stream # EE.on_ dataH \chunk -> do
+    Ref.modify_ (\buf -> Array.snoc buf chunk) chunks
+  stream # EE.on_ endH do
+    body <- Buffer.toString UTF8 =<< Buffer.concat =<< Ref.read chunks
+    done $ Right (if body == "" then Nothing else Just body)
+
+  launchAff_ $ writeBody (unsafeCoerce stream)
   pure nonCanceler
 
 foldHeaders :: Headers.ResponseHeaders -> Maybe (Object String)
