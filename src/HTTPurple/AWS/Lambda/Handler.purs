@@ -6,7 +6,7 @@ module HTTPurple.AWS.Lambda.Handler
 import Prelude
 
 import Control.Promise (Promise, fromAff)
-import Data.FoldableWithIndex (forWithIndex_)
+import Data.FoldableWithIndex (foldlWithIndex)
 import Data.Newtype (unwrap)
 import Data.Profunctor.Choice ((|||))
 import Data.String (joinWith)
@@ -15,10 +15,11 @@ import Effect.Class (liftEffect)
 import Effect.Console as Console
 import Effect.Exception as Exn
 import Effect.Uncurried (EffectFn2, EffectFn3, mkEffectFn3)
+import Foreign.Object as Object
 import HTTPurple as HTTPurple
 import HTTPurple.AWS.Lambda.Context (LambdaContext, useLambdaInputs)
 import HTTPurple.AWS.Lambda.Request (LambdaExtRequest, mkLambdaExtRequest)
-import HTTPurple.AWS.Lambda.Streaming (ResponseStream, setHeader, setStatusCode, toServerResponse)
+import HTTPurple.AWS.Lambda.Streaming (ResponseStream, toServerResponse, withMetadata)
 import HTTPurple.AWS.Lambda.Trigger (class LambdaTrigger, TriggerType, toRequest)
 import HTTPurple.Headers as HTTPuepleHeaders
 import Routing.Duplex as RD
@@ -74,13 +75,17 @@ mkHandlerWithStreaming op@{ route } = asStreamingEnabledLambdaHandler $
   -- pure resp
 
   send :: ResponseStream -> HTTPurple.Response -> Aff Unit
-  send respS httpurpleResp = do
-    liftEffect do
-      respS # setStatusCode httpurpleResp.status
-      case httpurpleResp.headers of
-        HTTPuepleHeaders.ResponseHeaders headers -> do
-          forWithIndex_ headers \k v -> do
-            respS # setHeader (unwrap k) (joinWith ";" v)
+  send respS' httpurpleResp = do
+    respS <- liftEffect do
+      let
+        HTTPuepleHeaders.ResponseHeaders headers' = httpurpleResp.headers
+        headers = headers' #
+          foldlWithIndex (\k obj v -> Object.insert (unwrap k) (joinWith ";" v) obj) Object.empty
+      withMetadata respS'
+        { statusCode: httpurpleResp.status
+        , headers
+        }
+
     httpurpleResp.writeBody (toServerResponse respS)
 
   onNotFound = const HTTPurple.notFound
