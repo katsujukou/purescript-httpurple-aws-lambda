@@ -10,6 +10,7 @@ import Control.Promise (Promise, fromAff)
 import Data.FoldableWithIndex (foldlWithIndex)
 import Data.Maybe (Maybe(..))
 import Data.Newtype (unwrap)
+import Data.Nullable (Nullable, toNullable)
 import Data.Profunctor.Choice ((|||))
 import Data.String (joinWith)
 import Effect (Effect)
@@ -62,9 +63,9 @@ mkHandlerInternal
   -> Maybe ResponseStream
   -> event
   -> LambdaContext
-  -> Effect (Promise (Maybe result))
+  -> Effect (Promise (Nullable result))
 mkHandlerInternal op@{ route } mbResp event ctx = do
-  launchAff handleRequest >>= joinFiber >>> fromAff
+  launchAff handleRequest >>= joinFiber >>> map toNullable >>> fromAff
   where
   handleRequest = do
     let
