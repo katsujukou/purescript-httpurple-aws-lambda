@@ -12,9 +12,7 @@ foreign import data ResponseStream :: Type
 toWritable :: forall r. ResponseStream -> Writable r
 toWritable = unsafeCoerce
 
-foreign import setStatusCode :: Int -> ResponseStream -> Effect Unit
-
-foreign import setHeader :: String -> String -> ResponseStream -> Effect Unit
+foreign import withMetadata :: forall r. ResponseStream -> { | r } -> Effect ResponseStream
 
 toServerResponse :: ResponseStream -> ServerResponse
 toServerResponse = unsafeCoerce

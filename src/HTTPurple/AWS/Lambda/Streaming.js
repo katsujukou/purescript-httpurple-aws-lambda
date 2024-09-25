@@ -1,7 +1,3 @@
-export const setStatusCode = code => responseStream => () => {
-  responseStream.statusCode = code;
+export const withMetadata = responseStream => metadata => () => {
+  return awslambda.HttpResponseStream.from(responseStream, metadata);
 }
-
-export const setHeader = key => value => responseStream => () => {
-  responseStream.setHeader(key, value);
-} 
