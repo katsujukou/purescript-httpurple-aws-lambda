@@ -22,7 +22,6 @@ import HTTPurple.AWS.Lambda.Streaming (ResponseStream, setHeader, setStatusCode,
 import HTTPurple.AWS.Lambda.Trigger (class LambdaTrigger, TriggerType, toRequest)
 import HTTPurple.Headers as HTTPuepleHeaders
 import Routing.Duplex as RD
-import Unsafe.Coerce (unsafeCoerce)
 
 type LambdaRoutingSettingsR trigger route output r =
   ( route :: RD.RouteDuplex' route

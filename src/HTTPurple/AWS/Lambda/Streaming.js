@@ -1,7 +1,7 @@
-export const setStatusCode = responseStream => code => () => {
+export const setStatusCode = code => responseStream => () => {
   responseStream.statusCode = code;
 }
 
-export const setHeader = responseStream => key => value => () => {
+export const setHeader = key => value => responseStream => () => {
   responseStream.setHeader(key, value);
 } 

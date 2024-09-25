@@ -12,7 +12,7 @@ import Prelude
 
 import Data.Array as Array
 import Data.Bitraversable (bitraverse)
-import Data.Either (Either(..))
+import Data.Either (Either)
 import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (unwrap)
@@ -37,11 +37,9 @@ import HTTPurple.Query as Query
 import HTTPurple.Version as Version
 import Node.Buffer.Class as Buffer
 import Node.Encoding (Encoding(..))
-import Node.EventEmitter as EE
 import Node.HTTP.IncomingMessage as IM
 import Node.HTTP.Types (IMServer, IncomingMessage)
-import Node.Stream (dataH, endH, readableFromBuffer)
-import Node.Stream as Stream
+import Node.Stream (readableFromBuffer)
 import Routing.Duplex as RD
 import Unsafe.Coerce (unsafeCoerce)
 
