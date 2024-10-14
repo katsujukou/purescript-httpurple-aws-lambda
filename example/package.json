@@ -1,10 +1,13 @@
 {
   "type": "module",
   "scripts": {
-    "compile": "cd .. && spago build -p example && purs-backend-es build",
-    "pack": "cd .. && purs-backend-es bundle-module --no-build -p node -y -t example/.dist/app.js -m Example",
-    "build": "npm run compile && npm run pack && echo '{ \"type\" : \"module\" }' > .dist/package.json",
-    "clean": "rm -rf .dist",
-    "start": "npm run build && sam local start-api"
+    "compile": "cd .. && spago build -p example",
+    "pack": "NODE_PATH=./node_modules esbuild ../output/Example/index.js --bundle --platform=node --format=esm --minify --banner:js=\"import { createRequire } from 'module';const require = createRequire(import.meta.url);\" --outfile=dist/app.js",
+    "build": "npm run compile && npm run pack && echo '{ \"type\" : \"module\" }' > dist/package.json",
+    "clean": "rm -rf dist",
+    "dev": "npm run build && sam local start-api"
+  },
+  "dependencies": {
+    "morgan": "^1.10.0"
   }
 }

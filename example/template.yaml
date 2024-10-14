@@ -26,7 +26,7 @@ Resources:
     Properties:
       Handler: app.basic
       Runtime: nodejs20.x
-      CodeUri: ./.dist
+      CodeUri: ./dist
       MemorySize: 128
       Timeout: 100
       Events:
@@ -34,5 +34,21 @@ Resources:
           Type: HttpApi
           Properties:
             ApiId: !Ref MyApi
-            Path: /{proxy+}
+            Path: /basic/{proxy+}
+            Method: ANY
+
+  ExampleNodeMiddlwareFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: app.nodeMiddleware
+      Runtime: nodejs20.x
+      CodeUri: ./dist
+      MemorySize: 128
+      Timeout: 100
+      Events:
+        CatchAllRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref MyApi
+            Path: /node-middleware/{proxy+}
             Method: ANY

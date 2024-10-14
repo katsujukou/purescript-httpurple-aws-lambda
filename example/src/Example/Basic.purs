@@ -9,10 +9,10 @@ import Data.Codec.Argonaut.Record as CAR
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe, fromMaybe)
 import Data.Show.Generic (genericShow)
+import Effect.Class.Console as Console
 import HTTPurple (Method(..), notFound, ok)
 import HTTPurple as HTTPurple
-import HTTPurple.AWS.Lambda (APIGatewayV2, LambdaHandler, lambdaRouter)
-import HTTPurple.AWS.Lambda.Handler (mkHandlerWithStreaming)
+import HTTPurple.AWS.Lambda (APIGatewayV2, LambdaHandler, lambdaRouter, mkHandler)
 import Routing.Duplex (optional, string)
 import Routing.Duplex as RD
 import Routing.Duplex.Generic as RDG
@@ -25,7 +25,7 @@ instance Show Endpoint where
   show = genericShow
 
 endpoints :: RD.RouteDuplex' Endpoint
-endpoints = RD.root $ RDG.sum
+endpoints = RD.root $ RD.prefix "basic" $ RDG.sum
   { "Greet": "greet" ? { name: optional <<< string }
   }
 
@@ -38,12 +38,13 @@ codec = CA.object "RequestBody" $
     }
 
 handler :: LambdaHandler APIGatewayV2
-handler = mkHandlerWithStreaming { route: endpoints, router }
+handler = mkHandler { route: endpoints, router }
   where
-  router = lambdaRouter \req@{ method, route } -> HTTPurple.usingCont $
+  router = lambdaRouter \req@{ method, route, lambdaInputs } -> HTTPurple.usingCont $
     case method, route of
       Get, Greet { name } -> do
-        ok $ "Hello, " <> (fromMaybe "World" name) <> "!"
+        Console.logShow lambdaInputs.event.requestContext.http
+        ok $ "\"Hello, " <> (fromMaybe "World" name) <> "!\""
 
       Post, Greet _ -> do
         let
