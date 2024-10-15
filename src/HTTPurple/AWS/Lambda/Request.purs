@@ -5,7 +5,10 @@ module HTTPurple.AWS.Lambda.Request
   , LambdaRequestR
   , lambdaRouter
   , mkLambdaExtRequest
+  , runLambdaExtRequest
   ) where
+
+import Prelude
 
 import Data.Newtype (class Newtype)
 import HTTPurple as HTTPurple
@@ -42,6 +45,14 @@ unLambdaExtRequest
    . LambdaExtRequest trigger route output
   -> LambdaExtEventRequest trigger event route output
 unLambdaExtRequest = unsafeCoerce
+
+runLambdaExtRequest
+  :: forall trigger event result route ctx r
+   . LambdaTrigger trigger event result
+  => (HTTPurple.ExtRequest route (lambdaInputs :: LambdaInputs event | ctx) -> r)
+  -> LambdaExtRequest trigger route ctx
+  -> r
+runLambdaExtRequest k = k <<< unsafeCoerce
 
 lambdaRouter
   :: forall @trigger m event result route output

@@ -7,6 +7,7 @@ module HTTPurple.AWS.Lambda.Handler
 
 import Prelude
 
+import Control.Monad.Error.Class (class MonadError)
 import Control.Promise (Promise, fromAff)
 import Data.Bifunctor (rmap)
 import Data.Either (Either)
@@ -19,8 +20,9 @@ import Data.Profunctor.Choice ((|||))
 import Data.String (joinWith)
 import Effect (Effect)
 import Effect.Aff (Aff, catchError, joinFiber, launchAff)
+import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (liftEffect)
-import Effect.Console as Console
+import Effect.Class.Console as Console
 import Effect.Exception as Exn
 import Effect.Uncurried (EffectFn2, EffectFn3, mkEffectFn2, mkEffectFn3)
 import Foreign.Object as Object
@@ -30,9 +32,7 @@ import HTTPurple.AWS.Lambda.Context (LambdaContext)
 import HTTPurple.AWS.Lambda.Request (LambdaExtEventRequestNT(..), LambdaExtRequest, LambdaRequestR, mkLambdaExtRequest)
 import HTTPurple.AWS.Lambda.Streaming (ResponseStream, toServerResponse, withMetadata)
 import HTTPurple.AWS.Lambda.Trigger (class LambdaTrigger, TriggerType, toRequest, toResponse)
-import HTTPurple.Headers (ResponseHeaders)
 import HTTPurple.Headers as HTTPuepleHeaders
-import Node.HTTP.Types (ServerResponse)
 import Prim.Row as Row
 import Prim.RowList (class RowToList)
 import Record (merge)
@@ -118,47 +118,44 @@ fromLambdaRequest route event ctx = do
 --   pure unit
 
 handleLambdaRequest
-  :: forall trigger event result route ctx thru ctxRL
+  :: forall trigger event result route m ctx thru ctxRL
    . LambdaTrigger trigger event result
   => Row.Union ctx thru ctx
   => Row.Nub (LambdaRequestR trigger event route ctx) (LambdaRequestR trigger event route ctx)
   => RowToList ctx ctxRL
+  => MonadAff m
+  => MonadError Exn.Error m
   => Maybe ResponseStream
   -> { route :: RD.RouteDuplex' route
      , router ::
          LambdaExtEventRequestNT trigger event route ctx
-         -> Aff
-              { headers :: ResponseHeaders
-              , status :: Int
-              , writeBody :: ServerResponse -> Aff Unit
-              }
-
+         -> m HTTPurple.Response
      }
   -> event
   -> LambdaContext
-  -> Aff (Maybe result)
+  -> m (Maybe result)
 handleLambdaRequest mbResp op@{ route } event ctx = do
   httpurpleReq <- liftEffect $ fromLambdaRequest route event ctx
   httpurpleResp <- (onNotFound ||| handleInternelError op.router) httpurpleReq
   case mbResp of
-    Just resp -> send resp httpurpleResp $> Nothing
+    Just resp -> (send resp httpurpleResp) $> Nothing
     Nothing -> do
-      resp <- toResponse @trigger httpurpleResp
+      resp <- liftAff $ toResponse @trigger httpurpleResp
       pure (Just resp)
   where
-  send :: ResponseStream -> HTTPurple.Response -> Aff Unit
+  send :: ResponseStream -> HTTPurple.Response -> m Unit
   send respS' httpurpleResp = do
     respS <- liftEffect do
       let
         HTTPuepleHeaders.ResponseHeaders headers' = httpurpleResp.headers
         headers = headers' #
           foldlWithIndex (\k obj v -> Object.insert (unwrap k) (joinWith ";" v) obj) Object.empty
-      withMetadata respS'
+      liftEffect $ withMetadata respS'
         { statusCode: httpurpleResp.status
         , headers
         }
 
-    httpurpleResp.writeBody (toServerResponse respS)
+    liftAff $ httpurpleResp.writeBody (toServerResponse respS)
 
   onNotFound = const HTTPurple.notFound
 
@@ -170,24 +167,27 @@ handleLambdaRequest mbResp op@{ route } event ctx = do
       HTTPurple.internalServerError "Internal server error"
 
 mkHandlerInternal
-  :: forall @trigger event result route output outputRL thru
+  :: forall @trigger event result route m output outputRL thru
    . LambdaTrigger trigger event result
   => Row.Union output thru output
   => RowToList output outputRL
   => KeysRL outputRL
   => Row.Nub (LambdaRequestR trigger event route output) (LambdaRequestR trigger event route output)
-  => Maybe ResponseStream
+  => MonadAff m
+  => MonadError Exn.Error m
+  => (m ~> Aff)
+  -> Maybe ResponseStream
   -- -> Maybe (NodeMiddlewareStack input output)
   -> { route :: RD.RouteDuplex' route
-     , router :: LambdaExtEventRequestNT trigger event route output -> Aff HTTPurple.Response
+     , router :: LambdaExtEventRequestNT trigger event route output -> m HTTPurple.Response
      }
   -> event
   -> LambdaContext
   -> Effect (Promise (Nullable result))
-mkHandlerInternal mbResp op event ctx = do
+mkHandlerInternal performM mbResp op event ctx = do
   launchAff handleRequest >>= joinFiber >>> map toNullable >>> fromAff
   where
-  handleRequest = handleLambdaRequest mbResp op event ctx
+  handleRequest = performM $ handleLambdaRequest mbResp op event ctx
 
 -- Just nodeMiddleware -> handleRequest' mbResp (merge op { nodeMiddleware })
 
@@ -204,7 +204,7 @@ mkHandler
   => BasicLambdaRoutingSettings trigger route
   -> LambdaHandler trigger
 mkHandler op = asLambdaHandler $ mkEffectFn2 $
-  mkHandlerInternal Nothing
+  mkHandlerInternal identity Nothing
     { route: op.route
     , router: asExtended op.router
     }
@@ -232,6 +232,7 @@ mkHandlerWithStreaming
   -> LambdaHandler trigger
 mkHandlerWithStreaming { route, router } = asStreamingEnabledLambdaHandler $
   mkEffectFn3 \evt stream -> mkHandlerInternal
+    identity
     (Just stream)
     -- Nothing
     { route
